@@ -5,15 +5,71 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KBK - Atelier 3 - Philippe C. Léger</title>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
 </head>
 <body>
-    <h1>KBK - Atelier 3</h1>
-    <h2>Philippe C. Léger - 201332206</h2>
-    <div id="graph-container"></div>
+        <h1>KBK - Atelier 3</h1>
+        <h2>Philippe C. Léger - 201332206</h2>
+        <hr>
+        <form id="frm-forecast">
+            <label for="txt-city" id="lbl-city">Ville</label>
+            <input type="text" name="txt-city" id="txt-city">
+            <button type="submit">Prévisions</button>
+        </form>
+    <div id="graph-container" style="width:100%; height: 600px;"></div>
 
     <script defer>
+
+        const API_Key = "686d831dff4bccc8eb8a144ffc9c30ad";
+        const formForecast = document.getElementById("frm-forecast");
+        const txtCity = document.getElementById("txt-city");
         const graphContainer = document.getElementById("graph-container");
-        
+
+        google.charts.load('current', {packages: ['corechart'], 'language': 'fr'});
+        google.charts.setOnLoadCallback()
+
+
+        function getUrl(cityName){
+            return `https://api.openweathermap.org/data/2.5/forecast?units=metric&q=${cityName}&appid=${API_Key}`;
+        }
+
+        function onSubmit(e){
+            console.log(txtCity.value);
+            updateData(txtCity.value);
+            e.preventDefault();
+        }
+
+        function updateData(cityName){
+            fetch(getUrl(cityName))
+            .then((response) => response.json())
+            .then((data) => {
+                console.log(data);
+                drawChart(cityName, data);
+            })
+            .catch((err) => console.log(err));
+        }
+
+        function parseData(data){
+            return data.list.map(o => [new Date(o.dt * 1000).toLocaleString(), o.main.temp_min, o.main.temp_max]);
+        }
+
+        function drawChart(cityName, data){
+            const dataTable = new google.visualization.DataTable();
+            dataTable.addColumn('string', 'Date et heure');
+            dataTable.addColumn('number', 'MIN');
+            dataTable.addColumn('number', 'MAX');
+            dataTable.addRows(parseData(data));
+            const options = {
+                title: `${cityName} - prévisions `,
+                titleTextStyle: {fontSize: '24', color: 'green'},
+                legend: {position:'top'},
+                curveType: 'function',
+            };
+            const chart = new google.visualization.LineChart(graphContainer);
+            chart.draw(dataTable, options);
+        }
+
+        formForecast.addEventListener("submit", onSubmit)
     </script>
 </body>
 </html>
