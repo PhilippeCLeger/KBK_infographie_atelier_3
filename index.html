@@ -6,16 +6,78 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KBK - Atelier 3 - Philippe C. Léger</title>
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <style>
+        #box-error, #box-loading{
+            display: flex;
+            width: 100%;
+            justify-content: center;
+        }
+        #txt-loading, #txt-error{
+            border-radius: 1rem;
+            padding: 1rem;
+            border: 1px solid red;
+            display: inline;
+        }
+
+        #txt-loading{
+            color: blue;
+            background-color: lightblue;
+            border-color: blue;
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        #txt-error{
+            color:red;
+            background-color: pink;
+        }
+
+        #txt-loading:hover, #txt-error:hover{
+            opacity: 0.5;
+        }
+
+        #box-spinner{
+            width: 2.5rem;
+            height: 2.5rem;
+            position:relative;
+        }
+
+
+
+        /*Adapté du CodePen de Rhys Powell : https://codepen.io/rhysforyou/pen/MvOgoQ */
+        #spinner::after{
+            content: '';
+            box-sizing: border-box;
+            position: absolute;
+            width: 100%;
+            height:100%;
+            border-radius: 50%;
+            border-left: 0.25rem solid blue;
+            border-top: 0.25rem solid lightblue;
+            border-right: 0.25rem solid blue;
+            border-bottom: 0.25rem solid lightblue;
+
+            animation: spinner 1s linear infinite;
+        }
+
+        @keyframes spinner {
+            to {transform: rotate(360deg);}
+        }
+    </style>
 </head>
 <body>
-        <h1>KBK - Atelier 3</h1>
-        <h2>Philippe C. Léger - 201332206</h2>
-        <hr>
-        <form id="frm-forecast">
-            <label for="txt-city" id="lbl-city">Ville</label>
-            <input type="text" name="txt-city" id="txt-city">
-            <button type="submit">Prévisions</button>
-        </form>
+    <h1>KBK - Atelier 3</h1>
+    <h2>Philippe C. Léger - 201332206</h2>
+    <hr>
+    <form id="frm-forecast">
+        <label for="txt-city" id="lbl-city">Ville</label>
+        <input type="text" name="txt-city" id="txt-city">
+        <button type="submit">Prévisions</button>
+    </form>
+
+    <div id="box-loading"><h3 id="txt-loading"><span>Chargement en cours... </span><div id="box-spinner"><div id="spinner"></div></div></h3></div>
+    <div id="box-error"><h3 id="txt-error">Mon message d'erreur</h3></div>
     <div id="graph-container" style="width:100%; height: 600px;"></div>
 
     <script defer>
@@ -25,9 +87,31 @@
         const txtCity = document.getElementById("txt-city");
         const graphContainer = document.getElementById("graph-container");
 
+        const boxLoading = document.getElementById("box-loading");
+        const txtLoading = document.getElementById("txt-loading");
+        const boxError = document.getElementById("box-error");
+        const txtError = document.getElementById("txt-error");
+
         google.charts.load('current', {packages: ['corechart'], 'language': 'fr'});
         google.charts.setOnLoadCallback()
 
+
+        function displayLoading(){
+            boxLoading.style.display = "flex";
+            txtError.style.display = "none";
+            graphContainer.style.display = "none";
+        }
+        function displayChart(){
+            boxLoading.style.display = "none";
+            txtError.style.display = "none";
+            graphContainer.style.display = "block";
+        }
+        function displayError(errorMessage){
+            txtError.innerText = `Erreur: ${errorMessage}`;
+            boxLoading.style.display = "none";
+            txtError.style.display = "flex";
+            graphContainer.style.display = "none";
+        }
 
         function getUrl(cityName){
             return `https://api.openweathermap.org/data/2.5/forecast?units=metric&q=${cityName}&appid=${API_Key}`;
@@ -40,27 +124,37 @@
         }
 
         function updateData(cityName){
+            displayLoading();
             fetch(getUrl(cityName))
-            .then((response) => response.json())
-            .then((data) => {
-                console.log(data);
-                drawChart(cityName, data);
-            })
-            .catch((err) => console.log(err));
+            .then(async (response) => {
+                const data = await response.json();
+                if(response.ok)
+                    drawChart(cityName, data);
+                else
+                    displayError(data.message);
+                });
+        }
+
+        function getDateTimeString(date){
+            return `${(date.getMonth() + 1).toString().padStart(2, '0')}/` + 
+            `${date.getDate().toString().padStart(2, '0')} ` + 
+            `${date.getHours().toString().padStart(2, '0')}h` + 
+            `${date.getMinutes().toString().padStart(2, '0')}`;
         }
 
         function parseData(data){
-            return data.list.map(o => [new Date(o.dt * 1000).toLocaleString(), o.main.temp_min, o.main.temp_max]);
+            return data.list.map(o => [getDateTimeString(new Date(o.dt * 1000)), o.main.temp_min, o.main.temp_max]);
         }
 
         function drawChart(cityName, data){
+            displayChart();
             const dataTable = new google.visualization.DataTable();
             dataTable.addColumn('string', 'Date et heure');
             dataTable.addColumn('number', 'MIN');
             dataTable.addColumn('number', 'MAX');
             dataTable.addRows(parseData(data));
             const options = {
-                title: `${cityName} - prévisions `,
+                title: `${cityName} - prévisions 5 jours`,
                 titleTextStyle: {fontSize: '24', color: 'green'},
                 legend: {position:'top'},
                 curveType: 'function',
@@ -70,6 +164,7 @@
         }
 
         formForecast.addEventListener("submit", onSubmit)
+        displayChart();
     </script>
 </body>
 </html>
